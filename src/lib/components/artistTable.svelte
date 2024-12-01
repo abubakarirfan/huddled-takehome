@@ -1,11 +1,24 @@
 <script lang="ts">
-  let { artistVisits } = $props();
+  export let artistVisits: {
+    artist_id: number;
+    artist_name: string;
+    total_visit_duration: number; // in seconds
+    unique_session_count: number;
+  }[];
 
+  // Format duration into human-readable format (seconds, minutes, hours)
   function formatDuration(duration: number): string {
-    const minutes = Math.floor(duration / 60);
-    const seconds = duration % 60;
-
-    return `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
+    if (duration < 60) {
+      return `${duration} seconds`;
+    } else if (duration < 3600) {
+      const minutes = Math.floor(duration / 60);
+      const seconds = duration % 60;
+      return `${minutes} minutes ${seconds} seconds`;
+    } else {
+      const hours = Math.floor(duration / 3600);
+      const minutes = Math.floor((duration % 3600) / 60);
+      return `${hours} hours ${minutes} minutes`;
+    }
   }
 </script>
 
@@ -18,7 +31,8 @@
         <tr>
           <th scope="col" class="px-6 py-3">Artist Id</th>
           <th scope="col" class="px-6 py-3">Artist Name</th>
-          <th scope="col" class="px-6 py-3">Total Time Spent (minutes)</th>
+          <th scope="col" class="px-6 py-3">Total Time Spent</th>
+          <th scope="col" class="px-6 py-3">Unique Visitors</th>
         </tr>
       </thead>
       <tbody>
@@ -38,7 +52,7 @@
               {formatDuration(total_visit_duration)}
             </td>
             <td class="px-6 py-4">
-              {formatDuration(unique_session_count)}
+              {unique_session_count}
             </td>
           </tr>
         {/each}
@@ -67,5 +81,4 @@
 .scrollbar-pretty::-webkit-scrollbar-thumb:hover {
   background: rgba(100, 100, 100, 0.7);
 }
-
 </style>
