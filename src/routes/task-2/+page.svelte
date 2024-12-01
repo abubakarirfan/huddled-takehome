@@ -4,14 +4,20 @@
   import Chart from "chart.js/auto";
 
   let { data }: { data: PageData } = $props();
-  console.log(data);
 
   const engagementData = Array.isArray(data.data) ? data.data : [];
   let chartContainer: HTMLCanvasElement | null = null;
   let chartInstance: Chart | null = null;
 
   // Grouped data
-  let groupedData: Record<string, number[]> = {};
+  let groupedData: Record<string, number[]> = engagementData.reduce(
+    (acc, { artist_id, hour, total_score }) => {
+      if (!acc[artist_id]) acc[artist_id] = new Array(24).fill(0);
+      acc[artist_id][parseInt(hour, 10)] = total_score;
+      return acc;
+    },
+    {}
+  );
 
   // Artists for filtering
   let selectedArtists: string[] = [];
@@ -20,12 +26,6 @@
   let showBackButton = false;
 
   onMount(() => {
-    groupedData = engagementData.reduce((acc: any, { artist_id, hour, total_score }) => {
-      if (!acc[artist_id]) acc[artist_id] = new Array(24).fill(0);
-      acc[artist_id][hour] = total_score;
-      return acc;
-    }, {});
-
     createChart();
   });
 
@@ -35,7 +35,10 @@
     }
 
     const datasets = Object.keys(groupedData)
-      .filter((artist_id) => selectedArtists.length === 0 || selectedArtists.includes(artist_id))
+      .filter(
+        (artist_id) =>
+          selectedArtists.length === 0 || selectedArtists.includes(artist_id)
+      )
       .map((artist_id) => ({
         label: `Artist ${artist_id}`,
         data: groupedData[artist_id],
@@ -61,18 +64,33 @@
                 font: { size: 14 },
                 padding: 20,
               },
-              onClick: (e, legendItem) => toggleArtist(legendItem.text.split(" ")[1]),
+              onClick: (e, legendItem) =>
+                toggleArtist(legendItem.text.split(" ")[1]),
             },
-            title: { display: true, text: "Artist Engagement by Hour", font: { size: 20 } },
+            title: {
+              display: true,
+              text: "Artist Engagement by Hour",
+              font: { size: 20 },
+            },
           },
           scales: {
             x: {
               ticks: { color: "#374151", font: { size: 12 } },
-              title: { display: true, text: "Hour", color: "#6B7280", font: { size: 16 } },
+              title: {
+                display: true,
+                text: "Hour",
+                color: "#6B7280",
+                font: { size: 16 },
+              },
             },
             y: {
               ticks: { color: "#374151", font: { size: 12 } },
-              title: { display: true, text: "Engagement Score", color: "#6B7280", font: { size: 16 } },
+              title: {
+                display: true,
+                text: "Engagement Score",
+                color: "#6B7280",
+                font: { size: 16 },
+              },
             },
           },
         },
@@ -89,54 +107,82 @@
     }
     createChart();
   }
-
-  function resetFilters() {
-    selectedArtists = [];
-    showBackButton = false; // Hide back button when no filter
-    createChart();
-  }
 </script>
 
-<div class="flex flex-col items-center space-y-8 bg-gray-100 p-6 rounded-lg shadow-lg">
+<div
+  class="flex flex-col items-center space-y-8 bg-gray-100 p-6 rounded-lg shadow-lg"
+>
   <!-- Title -->
   <h1 class="text-2xl font-bold text-gray-800">Artist Engagement Dashboard</h1>
 
-  <!-- Artist Filter -->
-  {#if !showBackButton}
-    <div class="flex flex-wrap gap-4 justify-center mt-4">
-      {#each Object.keys(groupedData) as artist_id}
-        <button
-          class={`px-4 py-2 rounded-lg focus:outline-none transition-all duration-300 ${
-            selectedArtists.includes(artist_id)
-              ? "bg-orange-500 text-white hover:bg-orange-600"
-              : "bg-gray-200 text-gray-800 hover:bg-gray-300"
-          }`}
-          on:click={() => toggleArtist(artist_id)}
-        >
-          {`Filter Artist ${artist_id}`}
-        </button>
-      {/each}
+  <div
+    class="grid grid-cols-2 md:grid-cols-3 gap-3 bg-white p-4 rounded-lg shadow-md w-full max-w-6xl"
+  >
+    <div class="text-center">
+      <h3 class="text-lg font-bold text-gray-700">Total Engagements</h3>
+      <p class="text-2xl font-semibold text-gray-900">
+        {engagementData.reduce((acc, { total_score }) => acc + total_score, 0)}
+      </p>
     </div>
-  {/if}
-
-  <!-- Back Button -->
-  {#if showBackButton}
-    <button
-      class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-300 mt-4"
-      on:click={resetFilters}
-    >
-      Back to All Artists
-    </button>
-  {/if}
+    <div class="text-center">
+      <h3 class="text-lg font-bold text-gray-700">Top Artist</h3>
+      <p class="text-2xl font-semibold text-gray-900">
+        {Object.entries(groupedData).reduce(
+          (top, [artist, scores]) => {
+            const total = scores.reduce((a, b) => a + b, 0);
+            return total > top.score ? { artist, score: total } : top;
+          },
+          { artist: "None", score: 0 }
+        ).artist}
+      </p>
+    </div>
+    <div class="text-center">
+      <h3 class="text-lg font-bold text-gray-700">Average Engagement/Hour</h3>
+      <p class="text-2xl font-semibold text-gray-900">
+        {(
+          engagementData.reduce(
+            (acc, { total_score }) => acc + total_score,
+            0
+          ) / 24
+        ).toFixed(2)}
+      </p>
+    </div>
+  </div>
 
   <!-- Graph -->
   <div class="w-full max-w-6xl bg-white p-4 rounded-lg shadow-md">
     <canvas bind:this={chartContainer}></canvas>
   </div>
+
+  <!-- Artist Rankings -->
+  <div class="w-full max-w-6xl bg-white p-4 rounded-lg shadow-md mt-6">
+    <h3 class="text-lg font-bold text-gray-700 mb-4">Artist Rankings</h3>
+    <table
+      class="table-auto w-full text-left border-collapse border border-gray-200"
+    >
+      <thead class="bg-gray-100">
+        <tr>
+          <th class="border border-gray-200 px-4 py-2">Rank</th>
+          <th class="border border-gray-200 px-4 py-2">Artist</th>
+          <th class="border border-gray-200 px-4 py-2">Total Engagement</th>
+        </tr>
+      </thead>
+      <tbody>
+        {#each Object.entries(groupedData)
+          .map( ([artist_id, scores]) => ({ artist_id, total_score: scores.reduce((a, b) => a + b, 0) }) )
+          .sort((a, b) => b.total_score - a.total_score) as { artist_id, total_score }, index}
+          <tr class={index % 2 === 0 ? "bg-gray-50" : ""}>
+            <td class="border border-gray-200 px-4 py-2">{index + 1}</td>
+            <td class="border border-gray-200 px-4 py-2"
+              >{`Artist ${artist_id}`}</td
+            >
+            <td class="border border-gray-200 px-4 py-2">{total_score}</td>
+          </tr>
+        {/each}
+      </tbody>
+    </table>
+  </div>
 </div>
 
 <style>
-  button {
-    font-weight: 500;
-  }
 </style>
